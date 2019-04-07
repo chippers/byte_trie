@@ -1,0 +1,7 @@
+[package]
+name = "byte_trie"
+version = "0.1.0"
+authors = ["chip reed <chip@chip.sh>"]
+edition = "2018"
+
+[dependencies]
