@@ -1,16 +1,24 @@
 use crate::key::Key;
 use crate::node::Node;
+use std::fmt::Debug;
 
+mod child;
 mod key;
 mod node;
 
 #[derive(Debug)]
-pub struct ByteTrie<T> {
+pub struct ByteTrie<T>
+where
+    T: Debug,
+{
     root: Node<T>,
     empty: bool,
 }
 
-impl<T> ByteTrie<T> {
+impl<T> ByteTrie<T>
+where
+    T: Debug,
+{
     pub fn new() -> Self {
         Self {
             root: Node::new_empty(),
