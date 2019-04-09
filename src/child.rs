@@ -31,6 +31,19 @@ impl<T> Child<T> {
         }
     }
 
+    pub(crate) fn slot(&self, hash: u8) -> usize {
+        hash as usize % self.size()
+    }
+
+    pub(crate) fn at(&mut self, slot: usize) -> Option<&mut Node<T>> {
+        self.child_mut()[slot].as_mut()
+    }
+
+    pub(crate) fn put(&mut self, slot: usize, node: Node<T>) {
+        let child = self.child_mut();
+        child[slot] = Some(node);
+    }
+
     pub(crate) fn size(&self) -> usize {
         match self {
             Child::_1(_) => 1,
@@ -45,42 +58,32 @@ impl<T> Child<T> {
         }
     }
 
-    pub(crate) fn at(&mut self, slot: usize) -> Option<&mut Node<T>> {
-        let bucket = match self {
-            Child::_1(child) => child.as_mut().as_mut(),
-            Child::_2(child) => child.as_mut().as_mut(),
-            Child::_4(child) => child.as_mut().as_mut(),
-            Child::_8(child) => child.as_mut().as_mut(),
-            Child::_16(child) => child.as_mut().as_mut(),
-            Child::_32(child) => child.as_mut().as_mut(),
-            Child::_64(child) => child.as_mut().as_mut(),
-            Child::_128(child) => child.as_mut().as_mut(),
-            Child::_256(child) => child.as_mut().as_mut(),
-        };
-
-        bucket[slot].as_mut()
-    }
-
-    pub(crate) fn put(&mut self, slot: usize, node: Node<T>) {
-        let child = self.child();
-        child[slot] = Some(node);
-    }
-
-    pub(crate) fn slot(&self, hash: u8) -> usize {
-        hash as usize % self.size()
-    }
-
-    fn child(&mut self) -> &mut [Option<Node<T>>] {
+    pub(crate) fn child_mut(&mut self) -> &mut [Option<Node<T>>] {
         match self {
-            Child::_1(child) => child.as_mut().as_mut(),
-            Child::_2(child) => child.as_mut().as_mut(),
-            Child::_4(child) => child.as_mut().as_mut(),
-            Child::_8(child) => child.as_mut().as_mut(),
-            Child::_16(child) => child.as_mut().as_mut(),
-            Child::_32(child) => child.as_mut().as_mut(),
-            Child::_64(child) => child.as_mut().as_mut(),
-            Child::_128(child) => child.as_mut().as_mut(),
-            Child::_256(child) => child.as_mut().as_mut(),
+            Child::_1(c) => c.as_mut().as_mut(),
+            Child::_2(c) => c.as_mut().as_mut(),
+            Child::_4(c) => c.as_mut().as_mut(),
+            Child::_8(c) => c.as_mut().as_mut(),
+            Child::_16(c) => c.as_mut().as_mut(),
+            Child::_32(c) => c.as_mut().as_mut(),
+            Child::_64(c) => c.as_mut().as_mut(),
+            Child::_128(c) => c.as_mut().as_mut(),
+            Child::_256(c) => c.as_mut().as_mut(),
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn child(&self) -> &[Option<Node<T>>] {
+        match self {
+            Child::_1(c) => c.as_ref().as_ref(),
+            Child::_2(c) => c.as_ref().as_ref(),
+            Child::_4(c) => c.as_ref().as_ref(),
+            Child::_8(c) => c.as_ref().as_ref(),
+            Child::_16(c) => c.as_ref().as_ref(),
+            Child::_32(c) => c.as_ref().as_ref(),
+            Child::_64(c) => c.as_ref().as_ref(),
+            Child::_128(c) => c.as_ref().as_ref(),
+            Child::_256(c) => c.as_ref().as_ref(),
         }
     }
 }
@@ -116,10 +119,8 @@ impl<T: fmt::Debug> fmt::Debug for Child<T> {
 // I probably spent half an hour messing with it, and 2 minutes to copy paste.
 macro_rules! child_new_init {
     ($new_fn:ident, $init:expr) => {
-        impl<T> Child<T>
-        where
-            T: Debug,
-        {
+        impl<T> Child<T> {
+            /// Create sized empty child
             pub(crate) fn $new_fn() -> Self {
                 $init
             }

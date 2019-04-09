@@ -4,6 +4,8 @@ use crate::node::Node;
 mod child;
 mod key;
 mod node;
+#[cfg(feature = "serde")]
+mod serde;
 
 #[derive(Debug)]
 pub struct ByteTrie<T> {
