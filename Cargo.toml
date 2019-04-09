@@ -12,3 +12,17 @@ description = "A compressed trie based on bytes with some weird child node bucke
 
 [dependencies]
 serde = { version = "1.0", optional = true }
+
+[dev-dependencies]
+criterion = "0.2"
+rand = "0.6"
+serde_json = "1.0"
+
+[[bench]]
+name = "inserting"
+harness = false
+
+[[bench]]
+name = "serializing"
+harness = false
+required-features = ["serde"]
