@@ -1,6 +1,5 @@
 use crate::child::{Child, MAX_CHILD_SIZE};
 use crate::key::{Key, KeyMatch};
-use std::mem;
 
 fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
     loop {
@@ -21,6 +20,7 @@ fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
 
 fn next_size(size: usize) -> Option<usize> {
     match size {
+        0 => Some(1),
         1 => Some(2),
         2 => Some(4),
         4 => Some(8),
@@ -37,35 +37,25 @@ fn next_size(size: usize) -> Option<usize> {
 pub(crate) struct Node<T> {
     pub(crate) key: Key,
     pub(crate) value: Option<T>,
-    pub(crate) child: Child<T>,
+    pub(crate) child: Option<Child<T>>,
 }
 
 impl<T> Node<T> {
-    pub(crate) fn new(key: Key, value: Option<T>) -> Self {
-        Self {
-            key,
-            value,
-            child: Child::new_1(),
-        }
-    }
-
-    pub(crate) fn new_empty() -> Self {
-        Self {
-            key: Vec::new(),
-            value: None,
-            child: Child::new_1(),
-        }
+    pub(crate) fn new(key: Key, value: Option<T>, child: Option<Child<T>>) -> Self {
+        Self { key, value, child }
     }
 
     /// Shrink the `Node` to the key index and return the excess as a new node.
-    fn replace_to(&mut self, to: usize, new_child: Child<T>) -> Self {
+    fn replace_to(&mut self, to: usize, value: Option<T>, child: Option<Child<T>>) -> Self {
         let excess = Self {
             key: self.key.split_off(to),
             value: self.value.take(),
-            child: mem::replace(&mut self.child, new_child),
+            child: self.child.take(),
         };
 
         self.key.shrink_to_fit();
+        self.value = value;
+        self.child = child;
         excess
     }
 
@@ -74,18 +64,12 @@ impl<T> Node<T> {
     /// This may cause the node to shrink key size, split into an empty parent,
     /// increase the child node size, or simply just add a new child.
     pub(crate) fn insert(&mut self, key: Key, value: Option<T>) {
-        // check for empty root node
-        if self.key.is_empty() && self.value.is_none() {
-            if let Child::_1(child) = &self.child {
-                if child[0].is_none() {
-                    self.key = key;
-                    self.value = value;
-                    return;
-                }
-            }
+        if self.key.is_empty() && self.value.is_none() && self.child.is_none() {
+            self.key = key;
+            self.value = value;
+        } else {
+            self.insert_node(Self::new(key, value, None));
         }
-
-        self.insert_node(Self::new(key, value));
     }
 
     fn insert_node(&mut self, mut new: Self) {
@@ -101,8 +85,7 @@ impl<T> Node<T> {
 
             // New node will become the parent to the current node
             KeyMatch::FullNew(idx) => {
-                let current_node = self.replace_to(idx, new.child);
-                self.value = new.value;
+                let current_node = self.replace_to(idx, new.value, new.child);
                 self.add_child_node(current_node);
             }
 
@@ -114,15 +97,15 @@ impl<T> Node<T> {
         }
     }
 
-    // If we are here we know that the keys have at least 1 byte each
+    // If we are here we know that the keys have at least `idx` byte each
     fn insert_ancestor(&mut self, mut new: Self, idx: usize) {
-        let (current_hash, new_hash) = (self.key[0], new.key[0]);
+        let (current_hash, new_hash) = (self.key[idx], new.key[idx]);
 
-        let current_size = smallest_upgrade(self.child.size(), current_hash, new_hash);
-        let current_node = self.replace_to(idx, Child::new(current_size));
+        let current_size = smallest_upgrade(self.child_size(), current_hash, new_hash);
+        let current_node = self.replace_to(idx, None, Some(Child::new(current_size)));
 
-        let new_size = smallest_upgrade(new.child.size(), current_hash, new_hash);
-        let new_node = new.replace_to(idx, Child::new(new_size));
+        let new_size = smallest_upgrade(new.child_size(), current_hash, new_hash);
+        let new_node = new.replace_to(idx, None, Some(Child::new(new_size)));
 
         self.add_child_node(current_node);
         self.add_child_node(new_node);
@@ -130,11 +113,26 @@ impl<T> Node<T> {
 
     // We know by here that the child key has at least 1 byte
     fn add_child_node(&mut self, child: Self) {
-        let slot = self.child.slot(child.key[0]);
-
-        match self.child.at(slot) {
-            Some(existing) => existing.insert_node(child),
-            None => self.child.put(slot, child),
+        if self.child.is_none() {
+            self.child = Some(Child::new(1));
         }
+
+        let current_child = self.child.as_mut().unwrap();
+        let slot = current_child.slot(child.key[0]);
+
+        match current_child.at(slot) {
+            Some(existing) => existing.insert_node(child),
+            None => current_child.put(slot, child),
+        }
+    }
+
+    fn child_size(&self) -> usize {
+        self.child.as_ref().map(Child::size).unwrap_or(0)
+    }
+}
+
+impl<T> Default for Node<T> {
+    fn default() -> Self {
+        Self::new(Vec::new(), None, None)
     }
 }

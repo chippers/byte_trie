@@ -18,7 +18,7 @@ pub struct ByteTrie<T> {
 impl<T> ByteTrie<T> {
     pub fn new() -> Self {
         Self {
-            root: Node::new_empty(),
+            root: Node::default(),
         }
     }
 

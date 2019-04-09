@@ -86,6 +86,11 @@ impl<T> Child<T> {
             Child::_256(c) => c.as_ref().as_ref(),
         }
     }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.child().iter().all(Option::is_none)
+    }
 }
 
 // I'm not sure why this works but deriving `Debug` on the enum doesn't.

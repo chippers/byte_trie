@@ -58,8 +58,12 @@ where
     M: SerializeMap,
 {
     let hex = Hex::new(&node).to_string();
+    let is_empty = match &node.child {
+        Some(child) => child.is_empty(),
+        None => true,
+    };
 
-    if node.child.child().iter().all(Option::is_none) {
+    if is_empty {
         map.serialize_entry(&hex, &node.value)
     } else {
         map.serialize_entry(&hex, &node.child)
@@ -74,16 +78,16 @@ where
         return vec![node];
     }
 
-    node.child
-        .child()
-        .iter()
-        .fold(Vec::new(), |mut acc, child| {
+    match &node.child {
+        Some(child) => child.child().iter().fold(Vec::new(), |mut acc, child| {
             if let Some(child) = child {
                 acc.append(&mut flatten_node(child));
             }
 
             acc
-        })
+        }),
+        None => Vec::new(),
+    }
 }
 
 impl<T> Serialize for Child<T>
