@@ -14,10 +14,10 @@ where
     root: Node<T>,
 }
 
-impl<T> ByteTrie<T>
-where
-    T: Debug,
-{
+/// A specialized byte based trie with many different sized nodes
+///
+/// Currently insert only, as that's the only functionality that I needed.
+impl<T> ByteTrie<T> {
     pub fn new() -> Self {
         Self {
             root: Node::new_empty(),
@@ -29,10 +29,8 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+impl<T> Default for ByteTrie<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
