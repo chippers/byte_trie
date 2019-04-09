@@ -57,8 +57,8 @@ impl<T> Node<T> {
         }
     }
 
-    /// Shrink the `Node` to the key index and return the rest.
-    fn shrink(&mut self, to: usize, new_child: Child<T>) -> Self {
+    /// Shrink the `Node` to the key index and return the excess as a new node.
+    fn replace_to(&mut self, to: usize, new_child: Child<T>) -> Self {
         let excess = Self {
             key: self.key.split_off(to),
             value: self.value.take(),
@@ -88,54 +88,44 @@ impl<T> Node<T> {
         self.insert_node(Self::new(key, value));
     }
 
-    fn insert_node(&mut self, mut child: Self) {
-        match KeyMatch::compare(&self.key, &child.key) {
+    fn insert_node(&mut self, mut new: Self) {
+        match KeyMatch::compare(&self.key, &new.key) {
             // We've seen this full key before, it's the same edge - replace it
-            KeyMatch::Exact => self.value = child.value,
+            KeyMatch::Exact => self.value = new.value,
 
             // New node will be a child of current node
             KeyMatch::FullOriginal(idx) => {
-                child.key = child.key.split_off(idx);
-                self.add_child_node(child)
+                new.key = new.key.split_off(idx);
+                self.add_child_node(new)
             }
 
             // New node will become the parent to the current node
             KeyMatch::FullNew(idx) => {
-                let current_node = self.shrink(idx, child.child);
-                self.value = child.value;
+                let current_node = self.replace_to(idx, new.child);
+                self.value = new.value;
                 self.add_child_node(current_node);
             }
 
-            // This node will become parent to both current and new node
-            KeyMatch::Partial(idx) => {
-                // If we are here we can be confident in the first index
-                let (hash, new_hash) = (self.key[0], child.key[0]);
+            // We need to create an ancestor to parent current and new node
+            KeyMatch::Partial(idx) => self.insert_ancestor(new, idx),
 
-                let old_size = smallest_upgrade(self.child.size(), hash, new_hash);
-                let old_node = self.shrink(idx, Child::new(old_size));
-
-                let child_size = smallest_upgrade(child.child.size(), hash, new_hash);
-                let old_child = child.shrink(idx, Child::new(child_size));
-
-                self.add_child_node(old_node);
-                self.add_child_node(old_child);
-            }
-
-            // This node will become parent to both current and new node
-            KeyMatch::None => {
-                // If we are here we can be confident in the first index
-                let (hash, new_hash) = (self.key[0], child.key[0]);
-
-                let old_size = smallest_upgrade(self.child.size(), hash, new_hash);
-                let old_node = self.shrink(0, Child::new(old_size));
-
-                let child_size = smallest_upgrade(child.child.size(), hash, new_hash);
-                let old_child = child.shrink(0, Child::new(child_size));
-
-                self.add_child_node(old_node);
-                self.add_child_node(old_child);
-            }
+            // We need to create an ancestor to parent current and new node
+            KeyMatch::None => self.insert_ancestor(new, 0),
         }
+    }
+
+    // If we are here we know that the keys have at least 1 byte each
+    fn insert_ancestor(&mut self, mut new: Self, idx: usize) {
+        let (current_hash, new_hash) = (self.key[0], new.key[0]);
+
+        let current_size = smallest_upgrade(self.child.size(), current_hash, new_hash);
+        let current_node = self.replace_to(idx, Child::new(current_size));
+
+        let new_size = smallest_upgrade(new.child.size(), current_hash, new_hash);
+        let new_node = new.replace_to(idx, Child::new(new_size));
+
+        self.add_child_node(current_node);
+        self.add_child_node(new_node);
     }
 
     // We know by here that the child key has at least 1 byte
