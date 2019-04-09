@@ -1,7 +1,6 @@
 use crate::child::{Child, MAX_CHILD_SIZE};
 use crate::key::{Key, KeyMatch};
-use core::fmt::Debug;
-use std::{fmt, mem};
+use std::mem;
 
 fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
     loop {
@@ -10,10 +9,6 @@ fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
             Some(next) => {
                 let lhs_diff = lhs as usize % next;
                 let rhs_diff = rhs as usize % next;
-                println!(
-                    "size: {} | next: {}, lhs: {} | lhs_diff: {} | rhs: {} | rhs_diff: {}",
-                    size, next, lhs, lhs_diff, rhs, rhs_diff
-                );
                 if lhs_diff != rhs_diff {
                     return next;
                 } else {
@@ -39,19 +34,21 @@ fn next_size(size: usize) -> Option<usize> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Node<T>
-where
-    T: Debug,
-{
+pub(crate) struct Node<T> {
     pub(crate) key: Key,
     pub(crate) value: Option<T>,
     pub(crate) child: Child<T>,
 }
 
-impl<T> Node<T>
-where
-    T: Debug,
-{
+impl<T> Node<T> {
+    pub(crate) fn new(key: Key, value: Option<T>) -> Self {
+        Self {
+            key,
+            value,
+            child: Child::new_1(),
+        }
+    }
+
     pub(crate) fn new_empty() -> Self {
         Self {
             key: Vec::new(),

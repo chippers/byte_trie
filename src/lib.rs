@@ -1,16 +1,12 @@
 use crate::key::Key;
 use crate::node::Node;
-use std::fmt::Debug;
 
 mod child;
 mod key;
 mod node;
 
 #[derive(Debug)]
-pub struct ByteTrie<T>
-where
-    T: Debug,
-{
+pub struct ByteTrie<T> {
     root: Node<T>,
 }
 

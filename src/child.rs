@@ -1,13 +1,9 @@
 use crate::node::Node;
 use std::fmt;
-use std::fmt::Debug;
 
 pub(crate) const MAX_CHILD_SIZE: usize = 256;
 
-pub(crate) enum Child<T>
-where
-    T: Debug,
-{
+pub(crate) enum Child<T> {
     _1(Box<[Option<Node<T>>; 1]>),
     _2(Box<[Option<Node<T>>; 2]>),
     _4(Box<[Option<Node<T>>; 4]>),
@@ -19,10 +15,7 @@ where
     _256(Box<[Option<Node<T>>; 256]>),
 }
 
-impl<T> Child<T>
-where
-    T: Debug,
-{
+impl<T> Child<T> {
     pub(crate) fn new(size: usize) -> Self {
         match size {
             1 => Self::new_1(),
@@ -92,6 +85,10 @@ where
     }
 }
 
+// I'm not sure why this works but deriving `Debug` on the enum doesn't.
+// It was complaining about the arrays larger than 32, but it seems like
+// `fmt()` is just doing the same thing to the box?  My guess is that
+// deriving it dereferences `Box` or something similar.
 impl<T: fmt::Debug> fmt::Debug for Child<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -108,6 +105,15 @@ impl<T: fmt::Debug> fmt::Debug for Child<T> {
     }
 }
 
+// Since we want to create a lot of `None`s of a type that isn't `Copy` and
+// we want our arrays larger than 32 (the maximum size for `Default`) we need
+// to use literals.  I played with making a proc_macro to generate the literals
+// but I couldn't figure out how to use the proc_macro in the macro_rules and
+// since our type was generic the literal didn't get type inference unless used
+// inside an impl.
+//
+// Oh well, it was just a one time copy and paste and just looks funny.
+// I probably spent half an hour messing with it, and 2 minutes to copy paste.
 macro_rules! child_new_init {
     ($new_fn:ident, $init:expr) => {
         impl<T> Child<T>
