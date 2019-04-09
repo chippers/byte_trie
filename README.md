@@ -1,5 +1,8 @@
 # byte_trie
 
+* crate: https://crates.io/crates/byte_trie
+* docs: https://docs.rs/byte_trie
+
 A compressed trie structure specifically for a list of bytes.  Made while
 wanting to create a serialized trie of git Oid hashes, which are 20 byte
 long arrays.  Played with some weird node size stuff to (hopefully) optimize
