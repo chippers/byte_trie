@@ -80,7 +80,6 @@ impl<T> Node<T> {
                 if child[0].is_none() {
                     self.key = key;
                     self.value = value;
-                    println!("found first non empty node");
                     return;
                 }
             }
