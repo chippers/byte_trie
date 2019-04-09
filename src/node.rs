@@ -73,46 +73,20 @@ impl<T> Node<T> {
     ///
     /// This may cause the node to shrink key size, split into an empty parent,
     /// increase the child node size, or simply just add a new child.
-    pub(crate) fn insert(&mut self, mut key: Key, value: Option<T>) {
-        match KeyMatch::compare(&self.key, &key) {
-            // We've seen this full key before, it's the same edge - replace it
-            KeyMatch::Exact => self.value = value,
-
-            // New node will be a child of current node
-            KeyMatch::FullOriginal(idx) => self.add_child(key.split_off(idx), value),
-
-            // New node will become the parent to the current node
-            KeyMatch::FullNew(idx) => {
-                let old_node = self.shrink(idx, Child::new_1());
-                self.value = value;
-
-                self.add_child_node(old_node);
-            }
-
-            // This node will become parent to both current and new node
-            KeyMatch::Partial(idx) => {
-                // If we are here we can be confident in the first index
-                let (hash, new_hash) = (self.key[idx], key[idx]);
-
-                let new_size = smallest_upgrade(self.child.size(), hash, new_hash);
-                let old_node = self.shrink(idx, Child::new(new_size));
-
-                self.add_child_node(old_node);
-                self.add_child(key.split_off(idx), value);
-            }
-
-            // This node will become parent to both current and new node
-            KeyMatch::None => {
-                // If we are here we can be confident in the first index
-                let (hash, new_hash) = (self.key[0], key[0]);
-
-                let new_size = smallest_upgrade(self.child.size(), hash, new_hash);
-                let old_node = self.shrink(0, Child::new(new_size));
-
-                self.add_child_node(old_node);
-                self.add_child(key, value);
+    pub(crate) fn insert(&mut self, key: Key, value: Option<T>) {
+        // check for empty root node
+        if self.key.is_empty() && self.value.is_none() {
+            if let Child::_1(child) = &self.child {
+                if child[0].is_none() {
+                    self.key = key;
+                    self.value = value;
+                    println!("found first non empty node");
+                    return;
+                }
             }
         }
+
+        self.insert_node(Self::new(key, value));
     }
 
     fn insert_node(&mut self, mut child: Self) {
@@ -128,11 +102,9 @@ impl<T> Node<T> {
 
             // New node will become the parent to the current node
             KeyMatch::FullNew(idx) => {
-                let old_node = self.shrink(idx, Child::new_1());
+                let current_node = self.shrink(idx, child.child);
                 self.value = child.value;
-                self.child = child.child;
-
-                self.add_child_node(old_node);
+                self.add_child_node(current_node);
             }
 
             // This node will become parent to both current and new node
@@ -164,23 +136,6 @@ impl<T> Node<T> {
                 self.add_child_node(old_node);
                 self.add_child_node(old_child);
             }
-        }
-    }
-
-    // We know by here that the key has at least 1 byte
-    fn add_child(&mut self, key: Key, value: Option<T>) {
-        let slot = self.child.slot(key[0]);
-
-        match self.child.at(slot) {
-            Some(existing) => existing.insert(key, value),
-            None => self.child.put(
-                slot,
-                Self {
-                    key,
-                    value,
-                    child: Child::new_1(),
-                },
-            ),
         }
     }
 
