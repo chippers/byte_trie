@@ -1,21 +1,23 @@
-use crate::node::Node;
+use crate::key::BytesKey;
+use crate::node::BytesNode;
 use std::fmt;
+use std::fmt::Pointer;
 
 pub(crate) const MAX_CHILD_SIZE: usize = 256;
 
-pub(crate) enum Child<T> {
-    _1(Box<[Option<Node<T>>; 1]>),
-    _2(Box<[Option<Node<T>>; 2]>),
-    _4(Box<[Option<Node<T>>; 4]>),
-    _8(Box<[Option<Node<T>>; 8]>),
-    _16(Box<[Option<Node<T>>; 16]>),
-    _32(Box<[Option<Node<T>>; 32]>),
-    _64(Box<[Option<Node<T>>; 64]>),
-    _128(Box<[Option<Node<T>>; 128]>),
-    _256(Box<[Option<Node<T>>; 256]>),
+pub(crate) enum Child<K: BytesKey, T> {
+    _1(Box<[Option<BytesNode<K, T>>; 1]>),
+    _2(Box<[Option<BytesNode<K, T>>; 2]>),
+    _4(Box<[Option<BytesNode<K, T>>; 4]>),
+    _8(Box<[Option<BytesNode<K, T>>; 8]>),
+    _16(Box<[Option<BytesNode<K, T>>; 16]>),
+    _32(Box<[Option<BytesNode<K, T>>; 32]>),
+    _64(Box<[Option<BytesNode<K, T>>; 64]>),
+    _128(Box<[Option<BytesNode<K, T>>; 128]>),
+    _256(Box<[Option<BytesNode<K, T>>; 256]>),
 }
 
-impl<T> Child<T> {
+impl<K: BytesKey, T> Child<K, T> {
     pub(crate) fn new(size: usize) -> Self {
         match size {
             1 => Self::new_1(),
@@ -35,11 +37,11 @@ impl<T> Child<T> {
         hash as usize % self.size()
     }
 
-    pub(crate) fn at(&mut self, slot: usize) -> Option<&mut Node<T>> {
+    pub(crate) fn at(&mut self, slot: usize) -> Option<&mut BytesNode<K, T>> {
         self.child_mut()[slot].as_mut()
     }
 
-    pub(crate) fn put(&mut self, slot: usize, node: Node<T>) {
+    pub(crate) fn put(&mut self, slot: usize, node: BytesNode<K, T>) {
         let child = self.child_mut();
         child[slot] = Some(node);
     }
@@ -58,7 +60,7 @@ impl<T> Child<T> {
         }
     }
 
-    pub(crate) fn child_mut(&mut self) -> &mut [Option<Node<T>>] {
+    pub(crate) fn child_mut(&mut self) -> &mut [Option<BytesNode<K, T>>] {
         match self {
             Child::_1(c) => c.as_mut().as_mut(),
             Child::_2(c) => c.as_mut().as_mut(),
@@ -73,7 +75,7 @@ impl<T> Child<T> {
     }
 
     #[cfg(feature = "serde")]
-    pub(crate) fn child(&self) -> &[Option<Node<T>>] {
+    pub(crate) fn child(&self) -> &[Option<BytesNode<K, T>>] {
         match self {
             Child::_1(c) => c.as_ref().as_ref(),
             Child::_2(c) => c.as_ref().as_ref(),
@@ -97,7 +99,7 @@ impl<T> Child<T> {
 // It was complaining about the arrays larger than 32, but it seems like
 // `fmt()` is just doing the same thing to the box?  My guess is that
 // deriving it dereferences `Box` or something similar.
-impl<T: fmt::Debug> fmt::Debug for Child<T> {
+impl<K: BytesKey, T: fmt::Debug> fmt::Debug for Child<K, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Child::_1(c) => c.fmt(f),
@@ -124,7 +126,7 @@ impl<T: fmt::Debug> fmt::Debug for Child<T> {
 // I probably spent half an hour messing with it, and 2 minutes to copy paste.
 macro_rules! child_new_init {
     ($new_fn:ident, $init:expr) => {
-        impl<T> Child<T> {
+        impl<K: BytesKey, T> Child<K, T> {
             /// Create sized empty child
             pub(crate) fn $new_fn() -> Self {
                 $init

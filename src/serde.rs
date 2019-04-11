@@ -1,26 +1,9 @@
 use crate::child::Child;
-use crate::node::Node;
-use crate::ByteTrie;
+use crate::key::BytesKey;
+use crate::node::BytesNode;
+use crate::trie::{BitTrie, ByteTrie, NibbleTrie};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use std::fmt;
-
-struct Hex<'a>(&'a [u8]);
-
-impl<'a> Hex<'a> {
-    fn new<T>(node: &'a Node<T>) -> Hex<'a>
-    where
-        T: Serialize,
-    {
-        Hex(&node.key)
-    }
-}
-
-impl<'a> fmt::Display for Hex<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.iter().try_for_each(|b| write!(f, "{:02x}", b))
-    }
-}
 
 impl<T> Serialize for ByteTrie<T>
 where
@@ -34,8 +17,33 @@ where
     }
 }
 
-impl<T> Serialize for Node<T>
+impl<T> Serialize for NibbleTrie<T>
 where
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_newtype_struct("NibbleTrie", &self.root)
+    }
+}
+
+impl<T> Serialize for BitTrie<T>
+where
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_newtype_struct("BitTrie", &self.root)
+    }
+}
+
+impl<K, T> Serialize for BytesNode<K, T>
+where
+    K: BytesKey,
     T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -52,29 +60,30 @@ where
     }
 }
 
-fn node_or_children<T, M>(node: &Node<T>, map: &mut M) -> Result<(), M::Error>
+fn node_or_children<K, T, M>(node: &BytesNode<K, T>, map: &mut M) -> Result<(), M::Error>
 where
+    K: BytesKey,
     T: Serialize,
     M: SerializeMap,
 {
-    let hex = Hex::new(&node).to_string();
     let is_empty = match &node.child {
         Some(child) => child.is_empty(),
         None => true,
     };
 
     if is_empty {
-        map.serialize_entry(&hex, &node.value)
+        map.serialize_entry(&node.key.to_string(), &node.value)
     } else {
-        map.serialize_entry(&hex, &node.child)
+        map.serialize_entry(&node.key.to_string(), &node.child)
     }
 }
 
-fn flatten_node<T>(node: &Node<T>) -> Vec<&Node<T>>
+fn flatten_node<K, T>(node: &BytesNode<K, T>) -> Vec<&BytesNode<K, T>>
 where
+    K: BytesKey,
     T: Serialize,
 {
-    if !node.key.is_empty() {
+    if !node.key.get().is_empty() {
         return vec![node];
     }
 
@@ -90,8 +99,9 @@ where
     }
 }
 
-impl<T> Serialize for Child<T>
+impl<K, T> Serialize for Child<K, T>
 where
+    K: BytesKey,
     T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

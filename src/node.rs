@@ -1,5 +1,5 @@
 use crate::child::{Child, MAX_CHILD_SIZE};
-use crate::key::{Key, KeyMatch};
+use crate::key::{BytesKey, KeyMatch};
 
 fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
     loop {
@@ -34,26 +34,26 @@ fn next_size(size: usize) -> Option<usize> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Node<T> {
-    pub(crate) key: Key,
-    pub(crate) value: Option<T>,
-    pub(crate) child: Option<Child<T>>,
+pub struct BytesNode<K: BytesKey, V> {
+    pub(crate) key: K,
+    pub(crate) value: Option<V>,
+    pub(crate) child: Option<Child<K, V>>,
 }
 
-impl<T> Node<T> {
-    pub(crate) fn new(key: Key, value: Option<T>, child: Option<Child<T>>) -> Self {
+impl<K: BytesKey, V> BytesNode<K, V> {
+    pub(crate) fn new(key: K, value: Option<V>, child: Option<Child<K, V>>) -> Self {
         Self { key, value, child }
     }
 
     /// Shrink the `Node` to the key index and return the excess as a new node.
-    fn replace_to(&mut self, to: usize, value: Option<T>, child: Option<Child<T>>) -> Self {
+    fn replace_to(&mut self, to: usize, value: Option<V>, child: Option<Child<K, V>>) -> Self {
         let excess = Self {
-            key: self.key.split_off(to),
+            key: K::new(self.key.get_mut().split_off(to)),
             value: self.value.take(),
             child: self.child.take(),
         };
 
-        self.key.shrink_to_fit();
+        self.key.get_mut().shrink_to_fit();
         self.value = value;
         self.child = child;
         excess
@@ -63,8 +63,8 @@ impl<T> Node<T> {
     ///
     /// This may cause the node to shrink key size, split into an empty parent,
     /// increase the child node size, or simply just add a new child.
-    pub(crate) fn insert(&mut self, key: Key, value: Option<T>) {
-        if self.key.is_empty() && self.value.is_none() && self.child.is_none() {
+    pub(crate) fn insert(&mut self, key: K, value: Option<V>) {
+        if self.key.get().is_empty() && self.value.is_none() && self.child.is_none() {
             self.key = key;
             self.value = value;
         } else {
@@ -73,18 +73,18 @@ impl<T> Node<T> {
     }
 
     fn insert_node(&mut self, mut new: Self) {
-        match KeyMatch::compare(&self.key, &new.key) {
+        match self.key.compare(&new.key) {
             // We've seen this full key before, it's the same edge - replace it
             KeyMatch::Exact => self.value = new.value,
 
             // New node will be a child of current node
-            KeyMatch::FullOriginal(idx) => {
-                new.key = new.key.split_off(idx);
+            KeyMatch::FullSelf(idx) => {
+                new.key = K::new(new.key.get_mut().split_off(idx));
                 self.add_child_node(new)
             }
 
             // New node will become the parent to the current node
-            KeyMatch::FullNew(idx) => {
+            KeyMatch::FullOther(idx) => {
                 let current_node = self.replace_to(idx, new.value, new.child);
                 self.add_child_node(current_node);
             }
@@ -99,7 +99,7 @@ impl<T> Node<T> {
 
     // If we are here we know that the keys have at least `idx` byte each
     fn insert_ancestor(&mut self, mut new: Self, idx: usize) {
-        let (current_hash, new_hash) = (self.key[idx], new.key[idx]);
+        let (current_hash, new_hash) = (self.key.get()[idx], new.key.get()[idx]);
 
         let current_size = smallest_upgrade(self.child_size(), current_hash, new_hash);
         let current_node = self.replace_to(idx, None, Some(Child::new(current_size)));
@@ -118,7 +118,7 @@ impl<T> Node<T> {
         }
 
         let current_child = self.child.as_mut().unwrap();
-        let slot = current_child.slot(child.key[0]);
+        let slot = current_child.slot(child.key.get()[0]);
 
         match current_child.at(slot) {
             Some(existing) => existing.insert_node(child),
@@ -131,8 +131,8 @@ impl<T> Node<T> {
     }
 }
 
-impl<T> Default for Node<T> {
+impl<K: BytesKey, V> Default for BytesNode<K, V> {
     fn default() -> Self {
-        Self::new(Vec::new(), None, None)
+        Self::new(K::new(Vec::new()), None, None)
     }
 }
