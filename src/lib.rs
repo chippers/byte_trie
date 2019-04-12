@@ -1,3 +1,5 @@
+#![doc(html_root_url = "https://docs.rs/byte_trie/0.3.0")]
+
 use crate::child::Child;
 use crate::keys::KeyMatch;
 use std::fmt::Display;

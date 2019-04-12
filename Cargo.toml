@@ -1,6 +1,6 @@
 [package]
 name = "byte_trie"
-version = "0.2.0"
+version = "0.3.0" # update lib.rs html_root_url version
 edition = "2018"
 
 authors = ["chip reed <chip@chip.sh>"]
@@ -8,6 +8,7 @@ license = "Apache-2.0 OR MIT"
 readme = "README.md"
 repository = "https://github.com/chippers/byte_trie"
 categories = ["data-structures"]
+keywords = ["trie", "serde", "byte", "nibble", "bit"]
 description = "A compressed trie based on bytes with some weird child node bucket sizes."
 
 [dependencies]
