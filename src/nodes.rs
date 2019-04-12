@@ -1,78 +1,39 @@
 use crate::child::{Child, MAX_CHILD_SIZE};
-use crate::key::{BytesKey, KeyMatch};
+use crate::keys::KeyMatch;
+pub use crate::AdaptiveNode;
+use crate::BytesKey;
 
-fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
-    loop {
-        match next_size(size) {
-            None => return MAX_CHILD_SIZE,
-            Some(next) => {
-                let lhs_diff = lhs as usize % next;
-                let rhs_diff = rhs as usize % next;
-                if lhs_diff != rhs_diff {
-                    return next;
-                } else {
-                    size = next
-                }
-            }
-        };
+impl<K: BytesKey, V> AdaptiveNode<K, V> {
+    pub fn new(key: K, value: Option<V>) -> Self {
+        Self {
+            key,
+            value,
+            child: None,
+        }
     }
-}
 
-fn next_size(size: usize) -> Option<usize> {
-    match size {
-        0 => Some(1),
-        1 => Some(2),
-        2 => Some(4),
-        4 => Some(8),
-        8 => Some(16),
-        16 => Some(32),
-        32 => Some(64),
-        64 => Some(128),
-        128 => Some(256),
-        _ => None,
-    }
-}
-
-#[derive(Debug)]
-pub struct BytesNode<K: BytesKey, V> {
-    pub(crate) key: K,
-    pub(crate) value: Option<V>,
-    pub(crate) child: Option<Child<K, V>>,
-}
-
-impl<K: BytesKey, V> BytesNode<K, V> {
-    pub(crate) fn new(key: K, value: Option<V>, child: Option<Child<K, V>>) -> Self {
+    fn with_child(key: K, value: Option<V>, child: Option<Child<K, V>>) -> Self {
         Self { key, value, child }
-    }
-
-    /// Shrink the `Node` to the key index and return the excess as a new node.
-    fn replace_to(&mut self, to: usize, value: Option<V>, child: Option<Child<K, V>>) -> Self {
-        let excess = Self {
-            key: K::new(self.key.get_mut().split_off(to)),
-            value: self.value.take(),
-            child: self.child.take(),
-        };
-
-        self.key.get_mut().shrink_to_fit();
-        self.value = value;
-        self.child = child;
-        excess
     }
 
     /// Insert a key into the node.
     ///
     /// This may cause the node to shrink key size, split into an empty parent,
     /// increase the child node size, or simply just add a new child.
-    pub(crate) fn insert(&mut self, key: K, value: Option<V>) {
+    pub fn insert(&mut self, key: K, value: Option<V>) {
         if self.key.get().is_empty() && self.value.is_none() && self.child.is_none() {
             self.key = key;
             self.value = value;
         } else {
-            self.insert_node(Self::new(key, value, None));
+            self.insert_node(Self::with_child(key, value, None));
         }
     }
 
-    fn insert_node(&mut self, mut new: Self) {
+    /// Insert a node into a node.
+    ///
+    /// This may cause the node to shrink key size, split into an empty parent,
+    /// increase the child node size, or simply just add a new child.
+    pub fn insert_node(&mut self, mut new: Self) {
         match self.key.compare(&new.key) {
             // We've seen this full key before, it's the same edge - replace it
             KeyMatch::Exact => self.value = new.value,
@@ -126,13 +87,61 @@ impl<K: BytesKey, V> BytesNode<K, V> {
         }
     }
 
+    /// Shrink the `Node` to the key index and return the excess as a new node.
+    fn replace_to(&mut self, to: usize, value: Option<V>, child: Option<Child<K, V>>) -> Self {
+        let excess = Self {
+            key: K::new(self.key.get_mut().split_off(to)),
+            value: self.value.take(),
+            child: self.child.take(),
+        };
+
+        self.key.get_mut().shrink_to_fit();
+        self.value = value;
+        self.child = child;
+        excess
+    }
+
     fn child_size(&self) -> usize {
         self.child.as_ref().map(Child::size).unwrap_or(0)
     }
 }
 
-impl<K: BytesKey, V> Default for BytesNode<K, V> {
+impl<K: BytesKey, V> Default for AdaptiveNode<K, V> {
     fn default() -> Self {
-        Self::new(K::new(Vec::new()), None, None)
+        Self::new(K::new(Vec::new()), None)
+    }
+}
+
+// Find the next child size that fits both new child bucket hashes
+fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
+    loop {
+        match next_size(size) {
+            None => return MAX_CHILD_SIZE,
+            Some(next) => {
+                let lhs_diff = lhs as usize % next;
+                let rhs_diff = rhs as usize % next;
+                if lhs_diff != rhs_diff {
+                    return next;
+                } else {
+                    size = next
+                }
+            }
+        };
+    }
+}
+
+// Find the next valid child size based on the current size
+fn next_size(size: usize) -> Option<usize> {
+    match size {
+        0 => Some(1),
+        1 => Some(2),
+        2 => Some(4),
+        4 => Some(8),
+        8 => Some(16),
+        16 => Some(32),
+        32 => Some(64),
+        64 => Some(128),
+        128 => Some(256),
+        _ => None,
     }
 }

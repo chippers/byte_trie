@@ -1,14 +1,10 @@
-use crate::key::{BitKey, ByteKey, BytesKey, NibbleKey};
-use crate::node::BytesNode;
-
-pub trait BytesTrie<T> {
-    fn new() -> Self;
-    fn insert(&mut self, key: &[u8], value: T);
-}
+use crate::keys::{BitKey, ByteKey, NibbleKey};
+pub use crate::BytesTrie;
+use crate::{AdaptiveNode, BytesKey};
 
 #[derive(Debug)]
 pub struct ByteTrie<T> {
-    pub(crate) root: BytesNode<ByteKey, T>,
+    pub(crate) root: AdaptiveNode<ByteKey, T>,
 }
 
 /// A specialized byte based trie with many different sized nodes
@@ -17,7 +13,7 @@ pub struct ByteTrie<T> {
 impl<T> BytesTrie<T> for ByteTrie<T> {
     fn new() -> Self {
         Self {
-            root: BytesNode::default(),
+            root: AdaptiveNode::default(),
         }
     }
 
@@ -34,13 +30,13 @@ impl<T> Default for ByteTrie<T> {
 }
 
 pub struct NibbleTrie<T> {
-    pub(crate) root: BytesNode<NibbleKey, T>,
+    pub(crate) root: AdaptiveNode<NibbleKey, T>,
 }
 
 impl<T> BytesTrie<T> for NibbleTrie<T> {
     fn new() -> Self {
         Self {
-            root: BytesNode::default(),
+            root: AdaptiveNode::default(),
         }
     }
 
@@ -52,7 +48,7 @@ impl<T> BytesTrie<T> for NibbleTrie<T> {
 
 #[derive(Debug)]
 pub struct BitTrie<T> {
-    pub(crate) root: BytesNode<BitKey, T>,
+    pub(crate) root: AdaptiveNode<BitKey, T>,
 }
 
 /// A specialized byte based trie with many different sized nodes
@@ -61,7 +57,7 @@ pub struct BitTrie<T> {
 impl<T> BytesTrie<T> for BitTrie<T> {
     fn new() -> Self {
         Self {
-            root: BytesNode::default(),
+            root: AdaptiveNode::default(),
         }
     }
 

@@ -1,7 +1,7 @@
 use crate::child::Child;
-use crate::key::BytesKey;
-use crate::node::BytesNode;
-use crate::trie::{BitTrie, ByteTrie, NibbleTrie};
+use crate::keys::BytesKey;
+use crate::nodes::AdaptiveNode;
+use crate::tries::{BitTrie, ByteTrie, NibbleTrie};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 
@@ -41,7 +41,7 @@ where
     }
 }
 
-impl<K, T> Serialize for BytesNode<K, T>
+impl<K, T> Serialize for AdaptiveNode<K, T>
 where
     K: BytesKey,
     T: Serialize,
@@ -60,7 +60,7 @@ where
     }
 }
 
-fn node_or_children<K, T, M>(node: &BytesNode<K, T>, map: &mut M) -> Result<(), M::Error>
+fn node_or_children<K, T, M>(node: &AdaptiveNode<K, T>, map: &mut M) -> Result<(), M::Error>
 where
     K: BytesKey,
     T: Serialize,
@@ -78,7 +78,7 @@ where
     }
 }
 
-fn flatten_node<K, T>(node: &BytesNode<K, T>) -> Vec<&BytesNode<K, T>>
+fn flatten_node<K, T>(node: &AdaptiveNode<K, T>) -> Vec<&AdaptiveNode<K, T>>
 where
     K: BytesKey,
     T: Serialize,

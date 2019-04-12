@@ -1,3 +1,4 @@
+pub use crate::BytesKey;
 use std::fmt;
 
 pub enum KeyMatch {
@@ -11,38 +12,6 @@ pub enum KeyMatch {
     Partial(usize),
     /// No parts of the new keys match
     None,
-}
-
-pub trait BytesKey: fmt::Display {
-    fn new(vec: Vec<u8>) -> Self;
-    fn from_bytes(bytes: &[u8]) -> Self;
-
-    fn get(&self) -> &[u8];
-    fn get_mut(&mut self) -> &mut Vec<u8>;
-
-    fn compare(&self, other: &Self) -> KeyMatch {
-        let prefix = self
-            .get()
-            .iter()
-            .zip(other.get().iter())
-            .take_while(|(&lhs, &rhs)| lhs == rhs)
-            .count();
-
-        let self_len = self.get().len();
-        let other_len = other.get().len();
-
-        if prefix == self_len && prefix == other_len {
-            KeyMatch::Exact
-        } else if prefix == self_len && other_len > self_len {
-            KeyMatch::FullSelf(prefix)
-        } else if prefix == other_len && self_len > other_len {
-            KeyMatch::FullOther(prefix)
-        } else if prefix > 0 {
-            KeyMatch::Partial(prefix)
-        } else {
-            KeyMatch::None
-        }
-    }
 }
 
 #[derive(Debug)]

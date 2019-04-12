@@ -1,20 +1,30 @@
-use crate::key::BytesKey;
-use crate::node::BytesNode;
+use crate::AdaptiveNode;
+use crate::BytesKey;
 use std::fmt;
 use std::fmt::Pointer;
+
+// Here be monsters.  the idea was to keep child bucket sizes as small
+// as possible when needed, as my use case grew into hundreds of thousands
+// of sha1's which many share a prefix, but quickly grow unique.  I also wanted
+// to avoid dynamic dispatch but I'm not sure if I achieved that.
+//
+// I am boxing the arrays instead of the `BytesNode` because the enum size in
+// memory is the size of the largest variant - which would have been a 256 len
+// array of Option<Box<T>> (8 bytes) so a 2kb minimum. With Box on the outside
+// it's an 8? byte variant;
 
 pub(crate) const MAX_CHILD_SIZE: usize = 256;
 
 pub(crate) enum Child<K: BytesKey, T> {
-    _1(Box<[Option<BytesNode<K, T>>; 1]>),
-    _2(Box<[Option<BytesNode<K, T>>; 2]>),
-    _4(Box<[Option<BytesNode<K, T>>; 4]>),
-    _8(Box<[Option<BytesNode<K, T>>; 8]>),
-    _16(Box<[Option<BytesNode<K, T>>; 16]>),
-    _32(Box<[Option<BytesNode<K, T>>; 32]>),
-    _64(Box<[Option<BytesNode<K, T>>; 64]>),
-    _128(Box<[Option<BytesNode<K, T>>; 128]>),
-    _256(Box<[Option<BytesNode<K, T>>; 256]>),
+    _1(Box<[Option<AdaptiveNode<K, T>>; 1]>),
+    _2(Box<[Option<AdaptiveNode<K, T>>; 2]>),
+    _4(Box<[Option<AdaptiveNode<K, T>>; 4]>),
+    _8(Box<[Option<AdaptiveNode<K, T>>; 8]>),
+    _16(Box<[Option<AdaptiveNode<K, T>>; 16]>),
+    _32(Box<[Option<AdaptiveNode<K, T>>; 32]>),
+    _64(Box<[Option<AdaptiveNode<K, T>>; 64]>),
+    _128(Box<[Option<AdaptiveNode<K, T>>; 128]>),
+    _256(Box<[Option<AdaptiveNode<K, T>>; 256]>),
 }
 
 impl<K: BytesKey, T> Child<K, T> {
@@ -37,11 +47,11 @@ impl<K: BytesKey, T> Child<K, T> {
         hash as usize % self.size()
     }
 
-    pub(crate) fn at(&mut self, slot: usize) -> Option<&mut BytesNode<K, T>> {
+    pub(crate) fn at(&mut self, slot: usize) -> Option<&mut AdaptiveNode<K, T>> {
         self.child_mut()[slot].as_mut()
     }
 
-    pub(crate) fn put(&mut self, slot: usize, node: BytesNode<K, T>) {
+    pub(crate) fn put(&mut self, slot: usize, node: AdaptiveNode<K, T>) {
         let child = self.child_mut();
         child[slot] = Some(node);
     }
@@ -60,7 +70,7 @@ impl<K: BytesKey, T> Child<K, T> {
         }
     }
 
-    pub(crate) fn child_mut(&mut self) -> &mut [Option<BytesNode<K, T>>] {
+    pub(crate) fn child_mut(&mut self) -> &mut [Option<AdaptiveNode<K, T>>] {
         match self {
             Child::_1(c) => c.as_mut().as_mut(),
             Child::_2(c) => c.as_mut().as_mut(),
@@ -75,7 +85,7 @@ impl<K: BytesKey, T> Child<K, T> {
     }
 
     #[cfg(feature = "serde")]
-    pub(crate) fn child(&self) -> &[Option<BytesNode<K, T>>] {
+    pub(crate) fn child(&self) -> &[Option<AdaptiveNode<K, T>>] {
         match self {
             Child::_1(c) => c.as_ref().as_ref(),
             Child::_2(c) => c.as_ref().as_ref(),
