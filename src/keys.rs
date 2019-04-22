@@ -1,6 +1,9 @@
+//! `u8` based key implementations.
+
 pub use crate::BytesKey;
 use std::fmt;
 
+/// How much of two `BytesKey`s share a prefix
 pub enum KeyMatch {
     /// The keys are **exactly** the same
     Exact,
@@ -8,12 +11,13 @@ pub enum KeyMatch {
     FullSelf(usize),
     /// The new key is fully matched, the original has more bytes
     FullOther(usize),
-    /// Both keys match partially, and have additional bytes
+    /// Both keys match partially, and both have additional bytes
     Partial(usize),
     /// No parts of the new keys match
     None,
 }
 
+/// A `u8` based key representing bytes
 #[derive(Debug)]
 pub struct ByteKey(Vec<u8>);
 
@@ -41,6 +45,7 @@ impl fmt::Display for ByteKey {
     }
 }
 
+/// A `u8` based key representing nibbles
 #[derive(Debug)]
 pub struct NibbleKey(Vec<u8>);
 
@@ -76,6 +81,7 @@ impl fmt::Display for NibbleKey {
     }
 }
 
+/// A `u8` based key representing bits
 #[derive(Debug)]
 pub struct BitKey(Vec<u8>);
 

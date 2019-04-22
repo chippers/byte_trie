@@ -1,3 +1,5 @@
+//! `u8` based node implementations.
+
 use crate::child::{Child, MAX_CHILD_SIZE};
 use crate::keys::KeyMatch;
 pub use crate::AdaptiveNode;
@@ -12,6 +14,7 @@ use crate::BytesKey;
 const NO_CHILD: usize = 0;
 
 impl<K: BytesKey, V> AdaptiveNode<K, V> {
+    /// Create a new `AdaptiveNode` form a key and value
     pub fn new(key: K, value: Option<V>) -> Self {
         Self {
             key,

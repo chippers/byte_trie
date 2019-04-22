@@ -1,20 +1,22 @@
+//! Here be monsters.  the idea was to keep child bucket sizes as small
+//! as possible when needed, as my use case grew into hundreds of thousands
+//! of sha1's which many share a prefix, but quickly grow unique.  I also wanted
+//! to avoid dynamic dispatch but I'm not sure if I achieved that.
+//!
+//! I am boxing the arrays instead of the `BytesNode` because the enum size in
+//! memory is the size of the largest variant - which would have been a 256 len
+//! array of Option<Box<T>> (8 bytes) so a 2kb minimum. With Box on the outside
+//! it's an 8? byte variant;
+
 use crate::AdaptiveNode;
 use crate::BytesKey;
 use std::fmt;
 use std::fmt::Pointer;
 
-// Here be monsters.  the idea was to keep child bucket sizes as small
-// as possible when needed, as my use case grew into hundreds of thousands
-// of sha1's which many share a prefix, but quickly grow unique.  I also wanted
-// to avoid dynamic dispatch but I'm not sure if I achieved that.
-//
-// I am boxing the arrays instead of the `BytesNode` because the enum size in
-// memory is the size of the largest variant - which would have been a 256 len
-// array of Option<Box<T>> (8 bytes) so a 2kb minimum. With Box on the outside
-// it's an 8? byte variant;
-
+/// Maximum size of a child slice
 pub(crate) const MAX_CHILD_SIZE: usize = 256;
 
+/// A funky way of representing node children in separately sized children
 pub(crate) enum Child<K: BytesKey, T> {
     _1(Box<[Option<AdaptiveNode<K, T>>; 1]>),
     _2(Box<[Option<AdaptiveNode<K, T>>; 2]>),

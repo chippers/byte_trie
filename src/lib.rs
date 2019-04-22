@@ -16,7 +16,10 @@ pub mod tries;
 /// Meant to be used for any type that can be represented within a  single
 /// `u8`, such as a byte, a nibble, or bit.
 pub trait BytesTrie<T> {
+    /// Create an empty trie
     fn new() -> Self;
+
+    /// Insert a key and value to the trie structure
     fn insert(&mut self, key: &[u8], value: T);
 }
 
@@ -34,12 +37,19 @@ pub struct AdaptiveNode<K: BytesKey, V> {
 ///
 /// Keeps track of `u8` representation and serialization presentation.
 pub trait BytesKey: Display {
+    /// Create a new key from a `Vec<u8>` already in the proper representation
     fn new(vec: Vec<u8>) -> Self;
+
+    /// Create a new key from a `Vec<u8>` representing full bytes
     fn from_bytes(bytes: &[u8]) -> Self;
 
+    /// Get an immutable slice reference to the underlying `Vec<u8>`.
     fn get(&self) -> &[u8];
+
+    /// Get a mutable reference to the underlying `Vec<u8>`
     fn get_mut(&mut self) -> &mut Vec<u8>;
 
+    /// Compare the shared prefix length of two keys
     fn compare(&self, other: &Self) -> KeyMatch {
         let prefix = self
             .get()
@@ -65,6 +75,7 @@ pub trait BytesKey: Display {
     }
 }
 
+/// A "prelude" for users of the `bytes_trie` crate
 pub mod prelude {
     pub use crate::keys::{BitKey, ByteKey, NibbleKey};
     pub use crate::nodes::AdaptiveNode;

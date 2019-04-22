@@ -1,15 +1,15 @@
+//! `u8` based trie implementations.
+
 use crate::keys::{BitKey, ByteKey, NibbleKey};
 pub use crate::BytesTrie;
 use crate::{AdaptiveNode, BytesKey};
 
+/// A `u8` based Trie represented with bytes.
 #[derive(Debug)]
 pub struct ByteTrie<T> {
     pub(crate) root: AdaptiveNode<ByteKey, T>,
 }
 
-/// A specialized byte based trie with many different sized nodes
-///
-/// Currently insert only, as that's the only functionality that I needed.
 impl<T> BytesTrie<T> for ByteTrie<T> {
     fn new() -> Self {
         Self {
@@ -29,6 +29,8 @@ impl<T> Default for ByteTrie<T> {
     }
 }
 
+/// A `u8` based Trie represented with nibbles.
+#[derive(Debug)]
 pub struct NibbleTrie<T> {
     pub(crate) root: AdaptiveNode<NibbleKey, T>,
 }
@@ -46,14 +48,12 @@ impl<T> BytesTrie<T> for NibbleTrie<T> {
     }
 }
 
+/// A `u8` based Trie represented with bits.
 #[derive(Debug)]
 pub struct BitTrie<T> {
     pub(crate) root: AdaptiveNode<BitKey, T>,
 }
 
-/// A specialized byte based trie with many different sized nodes
-///
-/// Currently insert only, as that's the only functionality that I needed.
 impl<T> BytesTrie<T> for BitTrie<T> {
     fn new() -> Self {
         Self {
