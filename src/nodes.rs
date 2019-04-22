@@ -12,10 +12,6 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
         }
     }
 
-    fn with_child(key: K, value: Option<V>, child: Option<Child<K, V>>) -> Self {
-        Self { key, value, child }
-    }
-
     /// Insert a key into the node.
     ///
     /// This may cause the node to shrink key size, split into an empty parent,
@@ -25,7 +21,7 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
             self.key = key;
             self.value = value;
         } else {
-            self.insert_node(Self::with_child(key, value, None));
+            self.insert_node(Self::new(key, value));
         }
     }
 
@@ -60,7 +56,8 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
 
     // If we are here we know that the keys have at least `idx` byte each
     fn insert_ancestor(&mut self, mut new: Self, idx: usize) {
-        let (current_hash, new_hash) = (self.key.get()[idx], new.key.get()[idx]);
+        let current_hash = self.key.get()[idx];
+        let new_hash = new.key.get()[idx];
 
         let current_size = smallest_upgrade(self.child_size(), current_hash, new_hash);
         let current_node = self.replace_to(idx, None, Some(Child::new(current_size)));
