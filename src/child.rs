@@ -43,17 +43,16 @@ impl<K: BytesKey, T> Child<K, T> {
         }
     }
 
-    pub(crate) fn slot(&self, hash: u8) -> usize {
-        hash as usize % self.size()
+    pub(crate) fn calculate_slot(&self, byte: u8) -> usize {
+        byte as usize % self.size()
     }
 
     pub(crate) fn at(&mut self, slot: usize) -> Option<&mut AdaptiveNode<K, T>> {
-        self.child_mut()[slot].as_mut()
+        self.get_mut()[slot].as_mut()
     }
 
     pub(crate) fn put(&mut self, slot: usize, node: AdaptiveNode<K, T>) {
-        let child = self.child_mut();
-        child[slot] = Some(node);
+        self.get_mut()[slot] = Some(node);
     }
 
     pub(crate) fn size(&self) -> usize {
@@ -66,11 +65,11 @@ impl<K: BytesKey, T> Child<K, T> {
             Child::_32(_) => 32,
             Child::_64(_) => 64,
             Child::_128(_) => 128,
-            Child::_256(_) => 256,
+            Child::_256(_) => MAX_CHILD_SIZE,
         }
     }
 
-    pub(crate) fn child_mut(&mut self) -> &mut [Option<AdaptiveNode<K, T>>] {
+    pub(crate) fn get_mut(&mut self) -> &mut [Option<AdaptiveNode<K, T>>] {
         match self {
             Child::_1(c) => c.as_mut().as_mut(),
             Child::_2(c) => c.as_mut().as_mut(),
@@ -85,7 +84,7 @@ impl<K: BytesKey, T> Child<K, T> {
     }
 
     #[cfg(feature = "serde")]
-    pub(crate) fn child(&self) -> &[Option<AdaptiveNode<K, T>>] {
+    pub(crate) fn get(&self) -> &[Option<AdaptiveNode<K, T>>] {
         match self {
             Child::_1(c) => c.as_ref().as_ref(),
             Child::_2(c) => c.as_ref().as_ref(),
@@ -101,7 +100,7 @@ impl<K: BytesKey, T> Child<K, T> {
 
     #[cfg(feature = "serde")]
     pub(crate) fn is_empty(&self) -> bool {
-        self.child().iter().all(Option::is_none)
+        self.get().iter().all(Option::is_none)
     }
 }
 

@@ -44,6 +44,7 @@ where
     }
 }
 
+/// Serialize a node if it doesn't have children, otherwise serialize the children
 fn node_or_children<K, T, M>(node: &AdaptiveNode<K, T>, map: &mut M) -> Result<(), M::Error>
 where
     K: BytesKey,
@@ -62,6 +63,7 @@ where
     }
 }
 
+/// Create a flat structure of same "level" node (child) keys
 fn flatten_node<K, T>(node: &AdaptiveNode<K, T>) -> Vec<&AdaptiveNode<K, T>>
 where
     K: BytesKey,
@@ -72,7 +74,7 @@ where
     }
 
     match &node.child {
-        Some(child) => child.child().iter().fold(Vec::new(), |mut acc, child| {
+        Some(child) => child.get().iter().fold(Vec::new(), |mut acc, child| {
             if let Some(child) = child {
                 acc.append(&mut flatten_node(child));
             }
@@ -94,9 +96,9 @@ where
     {
         let mut map = serializer.serialize_map(None)?;
 
-        self.child()
+        self.get()
             .iter()
-            .filter_map(|c| c.as_ref().map(flatten_node))
+            .filter_map(|child| child.as_ref().map(flatten_node))
             .try_for_each(|nodes| {
                 nodes
                     .iter()

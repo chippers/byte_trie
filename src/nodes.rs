@@ -3,6 +3,14 @@ use crate::keys::KeyMatch;
 pub use crate::AdaptiveNode;
 use crate::BytesKey;
 
+/// The size of a child that does not exist.
+///
+/// This is very important for `next_size`,
+/// `AdaptiveNode::smallest_ancestor_size`, and `Child::size` as careless
+/// changing of this size could cause infinite looping in
+/// `AdaptiveNode::smallest_ancestor_size`.  
+const NO_CHILD: usize = 0;
+
 impl<K: BytesKey, V> AdaptiveNode<K, V> {
     pub fn new(key: K, value: Option<V>) -> Self {
         Self {
@@ -17,7 +25,7 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
     /// This may cause the node to shrink key size, split into an empty parent,
     /// increase the child node size, or simply just add a new child.
     pub fn insert(&mut self, key: K, value: Option<V>) {
-        if self.key.get().is_empty() && self.value.is_none() && self.child.is_none() {
+        if self.child.is_none() && self.value.is_none() && self.key.get().is_empty() {
             self.key = key;
             self.value = value;
         } else {
@@ -56,17 +64,33 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
 
     // If we are here we know that the keys have at least `idx` byte each
     fn insert_ancestor(&mut self, mut new: Self, idx: usize) {
-        let current_hash = self.key.get()[idx];
-        let new_hash = new.key.get()[idx];
+        let size = self.smallest_ancestor_size(&new, idx);
 
-        let current_size = smallest_upgrade(self.child_size(), current_hash, new_hash);
-        let current_node = self.replace_to(idx, None, Some(Child::new(current_size)));
-
-        let new_size = smallest_upgrade(new.child_size(), current_hash, new_hash);
-        let new_node = new.replace_to(idx, None, Some(Child::new(new_size)));
+        let current_node = self.replace_to(idx, None, Some(Child::new(size)));
+        let new_node = new.replace_to(idx, None, Some(Child::new(size)));
 
         self.add_child_node(current_node);
         self.add_child_node(new_node);
+    }
+
+    /// Find the smallest child size for an ancestor that can fit both child hashes
+    fn smallest_ancestor_size(&self, other: &Self, hash_idx: usize) -> usize {
+        let lhs = self.key.get()[hash_idx] as usize;
+        let rhs = other.key.get()[hash_idx] as usize;
+        let mut size = self.child.as_ref().map(Child::size).unwrap_or(NO_CHILD);
+
+        // `next_size` is guaranteed to not return the same number, preventing an infinite loop.
+        // we know this because of the specific sized used in `Child::size` and `next_size`.
+        // the only other setting of sizes is the line above in the `unwrap_or` where we define
+        // the default size for not having a child.
+        loop {
+            let next = next_size(size);
+            if next == MAX_CHILD_SIZE || ((lhs % next) != (rhs % next)) {
+                return next;
+            }
+
+            size = next;
+        }
     }
 
     // We know by here that the child key has at least 1 byte
@@ -76,7 +100,7 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
         }
 
         let current_child = self.child.as_mut().unwrap();
-        let slot = current_child.slot(child.key.get()[0]);
+        let slot = current_child.calculate_slot(child.key.get()[0]);
 
         match current_child.at(slot) {
             Some(existing) => existing.insert_node(child),
@@ -97,10 +121,6 @@ impl<K: BytesKey, V> AdaptiveNode<K, V> {
         self.child = child;
         excess
     }
-
-    fn child_size(&self) -> usize {
-        self.child.as_ref().map(Child::size).unwrap_or(0)
-    }
 }
 
 impl<K: BytesKey, V> Default for AdaptiveNode<K, V> {
@@ -109,36 +129,32 @@ impl<K: BytesKey, V> Default for AdaptiveNode<K, V> {
     }
 }
 
-// Find the next child size that fits both new child bucket hashes
-fn smallest_upgrade(mut size: usize, lhs: u8, rhs: u8) -> usize {
-    loop {
-        match next_size(size) {
-            None => return MAX_CHILD_SIZE,
-            Some(next) => {
-                let lhs_diff = lhs as usize % next;
-                let rhs_diff = rhs as usize % next;
-                if lhs_diff != rhs_diff {
-                    return next;
-                } else {
-                    size = next
-                }
-            }
-        };
+/// Find the next valid child size based on the current size
+pub(crate) fn next_size(size: usize) -> usize {
+    match size {
+        0 => 1,
+        1 => 2,
+        2 => 4,
+        4 => 8,
+        8 => 16,
+        16 => 32,
+        32 => 64,
+        64 => 128,
+        _ => MAX_CHILD_SIZE,
     }
 }
 
-// Find the next valid child size based on the current size
-fn next_size(size: usize) -> Option<usize> {
-    match size {
-        0 => Some(1),
-        1 => Some(2),
-        2 => Some(4),
-        4 => Some(8),
-        8 => Some(16),
-        16 => Some(32),
-        32 => Some(64),
-        64 => Some(128),
-        128 => Some(256),
-        _ => None,
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn next_size_cannot_infinitely_loop() {
+        let mut size = NO_CHILD;
+        while size < MAX_CHILD_SIZE {
+            let next = next_size(size);
+            assert_ne!(size, next);
+            size = next;
+        }
     }
 }
