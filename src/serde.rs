@@ -5,41 +5,25 @@ use crate::tries::{BitTrie, ByteTrie, NibbleTrie};
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 
-impl<T> Serialize for ByteTrie<T>
-where
-    T: Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_newtype_struct("ByteTrie", &self.root)
-    }
+macro_rules! impl_serialize_root {
+    ($trie:ty, $name: expr) => {
+        impl<T> Serialize for $trie
+        where
+            T: Serialize,
+        {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                serializer.serialize_newtype_struct($name, &self.root)
+            }
+        }
+    };
 }
 
-impl<T> Serialize for NibbleTrie<T>
-where
-    T: Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_newtype_struct("NibbleTrie", &self.root)
-    }
-}
-
-impl<T> Serialize for BitTrie<T>
-where
-    T: Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_newtype_struct("BitTrie", &self.root)
-    }
-}
+impl_serialize_root!(ByteTrie<T>, "ByteTrie");
+impl_serialize_root!(NibbleTrie<T>, "NibbleTrie");
+impl_serialize_root!(BitTrie<T>, "BitTrie");
 
 impl<K, T> Serialize for AdaptiveNode<K, T>
 where
